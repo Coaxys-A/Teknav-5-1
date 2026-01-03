@@ -1,0 +1,51 @@
+TekNav – خلاصهٔ پیشرفته و فناوری‌ها
+-----------------------------------
+وضعیت کنونی: پلتفرم چند-مستاجری SaaS با هستهٔ بک‌اند NestJS + Prisma (PostgreSQL) و فرانت‌اند Next.js/React با RTL فارسی، PWA و حالت آفلاین.
+
+زبان‌ها و فریم‌ورک‌ها:
+- TypeScript در بک‌اند (NestJS، Prisma، GraphQL/REST hybrid، ماژول‌های ماژولار امنیت/احراز/ورک‌فلو/AI).
+- TypeScript/React در فرانت‌اند (Next.js App Router، SSR/ISR، i18n/RTL، PWA).
+- CSS/Tailwind theme پایه + ThemeProvider سفارشی.
+
+هسته بک‌اند:
+- Auth + JWT + نقش‌های سراسری و نقش‌های Workspace (OWNER/ADMIN/EDITOR/AUTHOR/VIEWER).
+- Workspace multi-tenant با WorkspaceMember و اسکوپ روی بیشتر مدل‌ها (مقاله/دسته/تگ/تبلیغ/محصول/سفارش/عضویت/کمپین/اسپانسر/ویژگی/ورک‌فلو/تمپلیت/تم/پلاگین).
+- مقالات، نسخه‌ها، ترجمه‌های چندزبانه (ArticleTranslation)، سئو و ایندکس جستجو (SearchDocument)، توصیه‌گر برداری.
+- Workflow Engine با استپ‌های ثبت‌شده (نوتیفای، اتوتگ، ایندکس جستجو، وبهوک، سوشال).
+- AI Suite: AiTemplate، AiDraft، سرویس AI برای متادیتا/خلاصه/بازنویسی/Outline، کیفیت محتوا، Guardian/SEO agents.
+- Monetization: Ads/AdCampaign/AdSlot/Sponsorship، Affiliate/Product/Order/Subscription، ClickEvent، Campaign/Placement.
+- Membership/Plans برای دسترسی پرمیوم.
+- Consent و سیاست حریم خصوصی در لاگ آنالیتیک.
+- Analytics/Event Pipeline، تجمیع روزانه ArticleStatsDaily/SearchQueryStatsDaily/UserEngagementDaily.
+- Plugin registry (پلاگین‌های slot-safe)، PageTemplate/Theme برای سفارشی‌سازی.
+- MediaAsset برای کتابخانهٔ بصری؛ File برای آپلودهای کلی.
+- Sponsors/Campaign/Placement برای برندها.
+- Mobile REST endpoints (/m/v1/feed/search/article).
+- PWA/Service Worker، Health/CORS/Rate limit/Audit/Notifications.
+
+هسته فرانت‌اند:
+- صفحات خوانش (خانه/دسته/جستجو/مقاله) با RTL فارسی و متای سئو.
+- داشبوردهای ادمین/نویسنده/مالک: مدیریت محتوا، ترجمه، حریم خصوصی، عوامل هوشمند، افزونه‌ها، ورک‌اسپیس‌ها.
+- API proxy routes برای تمام ماژول‌ها (articles, ads, ai, analytics, workflows, plugins, consent, workspaces, ...).
+- PluginSlot برای رندر ویجت‌های امن در اسلات‌ها (مثلاً news_sidebar).
+- صفحه آفلاین و رجیستر Service Worker؛ Manifest موجود.
+
+داده و پایگاه:
+- PostgreSQL با Prisma schema توسعه‌یافته: Workspace، WorkspaceMember، Article و وابسته‌ها، Ad/Store/Membership/AI/Template/Theme/Plugin/Stats و غیره.
+- Redis (در پیکربندی ماژول) برای کش/صف.
+- فایل‌ها/تصاویر با File/MediaAsset.
+
+امنیت و حریم خصوصی:
+- JWT + Role Guards + Consent-aware Analytics.
+- Rate limiting، CORS، Helmet، ValidationPipe، AuditLog.
+- Workflows برای وبهوک/سوشال و گسترش هوشمند.
+
+قابلیت‌ها و سطوح:
+- چندمستاجری: هر Workspace محتوا، تم، پلاگین، تبلیغ، کمپین، محصولات، عضویت‌های خود را دارد.
+- اقتصاد سازنده: اسپانسر/کمپین/Placement، محصولات و کلیک، عضویت و دسترسی پرمیوم.
+- AI Studio: قالب‌های AI، Draft، کنترل Outline/Rewrite/SEO.
+- جستجو و اکتشاف: ایندکس ترجمه، API جستجو، پیشنهادات.
+- PWA و موبایل: SW، صفحه آفلاین، API موبایل سبک.
+- سفارشی‌سازی: Theme/PageTemplate، پلاگین‌های اسلات‌بندی.
+
+نتیجه: TekNav اکنون یک پلتفرم جامع، چند-مستاجری، هوشمند و آمادهٔ مقیاس با هستهٔ امن، ماژولار و فارسی‌سازی کامل است؛ ترکیبی از محتوا، سئو، AI، اقتصاد سازنده و زیرساخت SaaS.

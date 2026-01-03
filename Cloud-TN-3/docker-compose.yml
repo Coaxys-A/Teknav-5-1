@@ -1,0 +1,36 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: teknav
+      POSTGRES_PASSWORD: teknav
+      POSTGRES_DB: teknav
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://teknav:teknav@db:5432/teknav
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    depends_on:
+      - db
+      - redis
+    ports:
+      - "8080:8080"
+
+volumes:
+  db_data:

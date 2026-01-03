@@ -1,0 +1,2251 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  EDITOR
+  AUTHOR
+  WRITER
+  CREATOR
+  PUBLISHER
+  USER
+  GUEST
+}
+
+enum LocaleDirection {
+  LTR
+  RTL
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  AUTHOR
+  VIEWER
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ApiTokenType {
+  PERSONAL
+  SERVICE
+}
+
+enum OtpPurpose {
+  LOGIN
+  MFA
+  RESET
+}
+
+enum OtpChannel {
+  EMAIL
+  SMS
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  password  String
+  name      String?
+  phone     String?
+  role      Role      @default(GUEST)
+  reputation Int      @default(0)
+  otpEnabled Boolean  @default(false)
+  mfaSecret String?
+  otpRecoveryCodes Json?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  lastLoginAt DateTime?
+  status    String    @default("active")
+  articles  Article[]
+  auditLogs AuditLog[] @relation("UserAuditLogs")
+  sessions  Session[]
+  apiTokens ApiToken[]
+  devices   UserDevice[]
+  otpCodes  OtpCode[]
+  createdVersions ArticleVersion[] @relation("UserCreatedVersions")
+  aiRequests AiRequest[]
+  filesUploaded File[]
+  analyticsEvents AnalyticsEvent[]
+  notifications Notification[]
+  orders Order[]
+  subscriptions Subscription[]
+  wallets Wallet[]
+  comments Comment[]
+  apiClients ApiClient[]
+  reviewedArticles Article[] @relation("ArticleReviewer")
+  adCampaigns AdCampaign[]
+  clickEvents ClickEvent[]
+  emailLogs EmailLog[]
+  emailPreference EmailPreference?
+  qualityReports ArticleQualityReport[]
+  contentIdeas ContentIdea[]
+  consents UserConsent[]
+  engagementDaily UserEngagementDaily[]
+  workspaceMembers WorkspaceMember[]
+  memberships Membership[]
+  aiTemplatesCreated AiTemplate[] @relation("UserAiTemplates")
+  aiDraftsCreated AiDraft[] @relation("UserAiDrafts")
+  mediaAssetsCreated MediaAsset[] @relation("UserMediaAssets")
+  templatesCreated PageTemplate[] @relation("UserPageTemplates")
+  profiles   UserProfile[]
+  events     UserEvent[]
+  interestVectors UserInterestVector[]
+  reactions  Reaction[]
+  bookmarks  Bookmark[]
+  follows    Follow[]
+  entitlements Entitlement[]
+  abuseReports AbuseReport[] @relation("UserAbuseReports")
+  memoryEvents MemoryEvent[] @relation("UserMemoryEvents")
+  identityNodes IdentityNode[] @relation("UserIdentityNodes")
+  preferenceVectors UserPreferenceVector[]
+  realtimeStates UserRealtimeState[]
+  adaptiveProfiles UserAdaptiveProfile[]
+  sessionFingerprints UserSessionFingerprint[]
+  aiCreatedTasks AiTask[] @relation("AiTaskCreatedBy")
+  aiMemories   AiMemory[]
+  aiProfile    AiUserProfile?
+}
+
+model Article {
+  id          Int        @id @default(autoincrement())
+  title       String
+  slug        String     @unique
+  content     String
+  excerpt     String?
+  status      String     @default("DRAFT")
+  reviewStatus String    @default("draft")
+  reviewNotes String?
+  assignedReviewerId Int?
+  assignedReviewer User? @relation("ArticleReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  categoryId  Int?
+  category    Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  tags        Json?
+  aiScore     Float?
+  aiDecision  String     @default("PENDING")
+  autoPublished Boolean  @default(false)
+  publishedAt DateTime?
+  scheduledFor DateTime?
+  metaTitle   String?
+  metaDescription String?
+  mainKeyword String?
+  readingTime Int?
+  seoScore    Float?
+  readability Float?
+  coverImageId Int?
+  coverImage  File?      @relation("ArticleCover", fields: [coverImageId], references: [id], onDelete: SetNull)
+  authorId    Int?
+  author      User?      @relation(fields: [authorId], references: [id])
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  aiReports   AIReport[]
+  versions    ArticleVersion[]
+  articleTags ArticleTag[]
+  translations ArticleTranslation[]
+  recommendationVector RecommendationVector?
+  sponsorships Sponsorship[]
+  articleProducts ArticleProduct[]
+  comments Comment[]
+  clickEvents ClickEvent[]
+  qualityReports ArticleQualityReport[]
+  searchDocuments SearchDocument[]
+  statsDaily ArticleStatsDaily[]
+  aiDrafts   AiDraft[]
+  articleTopics ArticleTopic[]
+  bookmarks Bookmark[]
+
+  @@index([status])
+  @@index([aiScore])
+  @@index([scheduledFor])
+  @@index([categoryId])
+  @@index([workspaceId])
+}
+
+model ArticleVersion {
+  id          Int      @id @default(autoincrement())
+  articleId   Int
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
+  excerpt     String?
+  tags        Json?
+  status      String
+  createdAt   DateTime @default(now())
+  createdById Int?
+  createdBy   User?    @relation("UserCreatedVersions", fields: [createdById], references: [id])
+
+  @@index([articleId])
+  @@index([createdAt])
+}
+
+model AIReport {
+  id               Int      @id @default(autoincrement())
+  articleId        Int
+  article          Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  originalityScore Float?
+  seoScore         Float?
+  structureValid   Boolean?
+  aiProbability    Float?
+  feedback         String?
+  modelUsed        String?
+  raw              Json?
+  createdAt        DateTime @default(now())
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int?
+  actor     User?    @relation("UserAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  resource  String?
+  payload   Json?
+  ip        String?
+  ua        String?
+  createdAt DateTime @default(now())
+
+  @@index([action])
+  @@index([createdAt])
+}
+
+model ArticleTranslation {
+  id              Int      @id @default(autoincrement())
+  articleId       Int
+  article         Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  localeCode      String
+  locale          Locale   @relation(fields: [localeCode], references: [code], onDelete: Cascade)
+  slug            String
+  title           String
+  summary         String?
+  content         String
+  status          String   @default("draft")
+  isMachineTranslated Boolean @default(false)
+  isHumanVerified Boolean @default(false)
+  metaTitle       String?
+  metaDescription String?
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([articleId, localeCode])
+  @@unique([slug, localeCode])
+  @@index([localeCode])
+}
+
+model RecommendationVector {
+  id        Int      @id @default(autoincrement())
+  articleId Int
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  vector    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([articleId])
+}
+
+model AdSlot {
+  id               Int      @id @default(autoincrement())
+  key              String   @unique
+  page             String
+  position         String
+  deviceType       String
+  isActive         Boolean  @default(true)
+  pricingStrategy  String   @default("floor")
+  floorPrice       Float?
+  maxPrice         Float?
+  meta             Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  workspaceId      Int?
+  workspace        Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  adCreatives AdCreative[]
+}
+
+model AdCampaign {
+  id           Int      @id @default(autoincrement())
+  advertiserId Int?
+  advertiser   User?    @relation(fields: [advertiserId], references: [id], onDelete: SetNull)
+  name         String
+  budgetTotal  Float
+  budgetSpent  Float    @default(0)
+  cpmFloor     Float?
+  cpcFloor     Float?
+  startAt      DateTime?
+  endAt        DateTime?
+  targeting    Json?
+  status       String   @default("active")
+  priority     Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  workspaceId  Int?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  creatives AdCreative[]
+
+  @@index([status])
+  @@index([workspaceId])
+}
+
+model AdCreative {
+  id             Int       @id @default(autoincrement())
+  campaignId     Int
+  campaign       AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  slotKey        String
+  type           String
+  markup         String?
+  imageUrl       String?
+  clickUrl       String?
+  trackingPixels Json?
+  status         String    @default("active")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  adSlot AdSlot? @relation(fields: [slotKey], references: [key], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([slotKey])
+}
+
+model Sponsorship {
+  id          Int      @id @default(autoincrement())
+  sponsor     String
+  sponsorUrl  String?
+  logoUrl     String?
+  label       String?
+  articleId   Int
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  startAt     DateTime
+  endAt       DateTime
+  createdAt   DateTime @default(now())
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+  @@index([startAt, endAt])
+  @@index([workspaceId])
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  articles    Article[]
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  topicId     Int?
+  topic       Topic?    @relation(fields: [topicId], references: [id], onDelete: SetNull)
+}
+
+model Tag {
+  id         Int        @id @default(autoincrement())
+  name       String
+  slug       String     @unique
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  articleTags ArticleTag[]
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  topicId    Int?
+  topic      Topic?    @relation(fields: [topicId], references: [id], onDelete: SetNull)
+}
+
+model ArticleTag {
+  articleId Int
+  tagId     Int
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, tagId])
+  @@index([tagId])
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  ip               String?
+  userAgent        String?
+  deviceId         String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([deviceId])
+}
+
+model ApiToken {
+  id         Int          @id @default(autoincrement())
+  userId     Int?
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type       ApiTokenType
+  label      String?
+  tokenHash  String       @unique
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([expiresAt])
+}
+
+model File {
+  id            Int      @id @default(autoincrement())
+  urlOriginal   String
+  urlSmall      String?
+  urlMedium     String?
+  urlLarge      String?
+  mimeType      String?
+  size          Int?
+  width         Int?
+  height        Int?
+  createdAt     DateTime @default(now())
+  uploadedById  Int?
+  uploadedBy    User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  usedInArticles Article[] @relation("ArticleCover")
+}
+
+model UserDevice {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId   String
+  userAgent  String?
+  ip         String?
+  trusted    Boolean  @default(false)
+  firstSeen  DateTime @default(now())
+  lastUsed   DateTime @default(now())
+
+  @@unique([userId, deviceId])
+  @@index([lastUsed])
+}
+
+model OtpCode {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  purpose   OtpPurpose
+  channel   OtpChannel
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime   @default(now())
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+}
+
+model AiRequest {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  type       String
+  inputText  String
+  createdAt  DateTime @default(now())
+  results    AiResult[]
+
+  @@index([type])
+  @@index([createdAt])
+}
+
+model AiResult {
+  id         Int      @id @default(autoincrement())
+  requestId  Int
+  request    AiRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  outputText String
+  meta       Json?
+  createdAt  DateTime @default(now())
+}
+
+model AnalyticsEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  eventType String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+model AnalyticsAggregate {
+  id        Int      @id @default(autoincrement())
+  bucket    DateTime
+  period    String   // hour/day/week
+  eventType String
+  count     Int      @default(0)
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([bucket, period, eventType])
+  @@unique([bucket, period, eventType], name: "bucket_period_eventType")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  channel   String   // email, sms, push
+  template  String?
+  payload   Json?
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  sentAt    DateTime?
+  readAt    DateTime?
+}
+
+model EmailTemplate {
+  id               Int      @id @default(autoincrement())
+  key              String   @unique
+  subjectTemplate  String
+  bodyHtmlTemplate String?
+  bodyTextTemplate String?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model EmailLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email        String
+  templateKey  String
+  context      Json?
+  status       String   @default("pending")
+  errorMessage String?
+  sentAt       DateTime?
+  createdAt    DateTime @default(now())
+}
+
+model EmailPreference {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  frequency  String   @default("daily") // never, immediate, daily, weekly
+  categories Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model DistributionChannel {
+  id        Int      @id @default(autoincrement())
+  type      String
+  name      String
+  config    Json?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id            Int       @id @default(autoincrement())
+  name          String
+  slug          String    @unique
+  description   String?
+  price         Int
+  currency      String    @default("IRR")
+  productType   String    @default("subscription") // subscription | one_time
+  interval      String?   // monthly/yearly for subscription
+  active        Boolean   @default(true)
+  affiliateUrl  String?
+  imageUrl      String?
+  merchantName  String?
+  category      String?
+  rating        Float?
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now())
+  subscriptions Subscription[]
+  orders        Order[]
+  articleProducts ArticleProduct[]
+  clickEvents ClickEvent[]
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  tenantId    Int?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  priceTiers  PriceTier[]
+  entitlements Entitlement[]
+
+  @@index([slug])
+  @@index([workspaceId])
+  @@index([tenantId])
+}
+
+model Order {
+  id           Int       @id @default(autoincrement())
+  userId       Int?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  productId    Int
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  amount       Int
+  currency     String    @default("IRR")
+  status       String    @default("pending") // pending/paid/failed/refunded
+  meta         Json?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @default(now())
+  workspaceId  Int?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  tenantId     Int?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([status])
+  @@index([workspaceId])
+  @@index([tenantId])
+}
+
+model Subscription {
+  id              Int       @id @default(autoincrement())
+  userId          Int
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId       Int
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  status          String    @default("active")
+  currentPeriodEnd DateTime?
+  cancelAtPeriodEnd Boolean @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now())
+  workspaceId     Int?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  tenantId        Int?
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  entitlements    Entitlement[]
+
+  @@index([userId])
+  @@index([productId])
+  @@index([status])
+  @@index([workspaceId])
+  @@index([tenantId])
+}
+
+model ArticleProduct {
+  articleId Int
+  productId Int
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, productId])
+  @@index([productId])
+}
+
+model ClickEvent {
+  id         Int      @id @default(autoincrement())
+  articleId  Int
+  productId  Int
+  userId     Int?
+  source     String?
+  createdAt  DateTime @default(now())
+  article    Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+  @@index([productId])
+  @@index([userId])
+}
+
+model Wallet {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance    Int      @default(0)
+  currency   String   @default("IRR")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+  transactions WalletTransaction[]
+
+  @@unique([userId, currency])
+}
+
+model WalletTransaction {
+  id         Int      @id @default(autoincrement())
+  walletId   Int
+  wallet     Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  amount     Int
+  type       String   // credit/debit
+  reference  String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([walletId])
+}
+
+model ApiClient {
+  id         Int      @id @default(autoincrement())
+  name       String
+  ownerId    Int?
+  owner      User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  apiKeyHash String   @unique
+  scopes     Json?
+  rateLimit  Int      @default(1000)
+  metadata   Json?
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  @@index([ownerId])
+}
+
+model WebhookSubscription {
+  id         Int      @id @default(autoincrement())
+  url        String
+  eventType  String
+  secret     String
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+
+  @@index([eventType])
+  @@index([status])
+}
+
+model Comment {
+  id         Int      @id @default(autoincrement())
+  articleId  Int
+  article    Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  parentId   Int?
+  parent     Comment? @relation("CommentToComment", fields: [parentId], references: [id], onDelete: SetNull)
+  children   Comment[] @relation("CommentToComment")
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  guestName  String?
+  body       String
+  status     String   @default("visible")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenantId   Int?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  abuseReports AbuseReport[] @relation("CommentAbuseReports")
+
+  @@index([articleId])
+  @@index([userId])
+  @@index([status])
+  @@index([tenantId])
+}
+
+model MemoryNode {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  label       String
+  type        String   @default("content")
+  payload     Json?
+  priority    Float?   @default(0)
+  decay       Float?   @default(1)
+  contextTags Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  embeddings  MemoryEmbedding[]
+  outgoing    MemoryEdge[] @relation("MemoryEdgeFrom")
+  incoming    MemoryEdge[] @relation("MemoryEdgeTo")
+  snapshots   MemorySnapshot[]
+  clusterLinks MemoryClusterLink[]
+  events     MemoryEvent[] @relation("MemoryNodeEvents")
+}
+
+model MemoryEdge {
+  id          Int      @id @default(autoincrement())
+  fromId      Int
+  toId        Int
+  from        MemoryNode @relation("MemoryEdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to          MemoryNode @relation("MemoryEdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+  weight      Float     @default(0.1)
+  relation    String    @default("related")
+  context     Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([fromId])
+  @@index([toId])
+}
+
+model MemoryCluster {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  label     String
+  meta      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  links     MemoryClusterLink[]
+}
+
+model MemorySnapshot {
+  id         Int      @id @default(autoincrement())
+  nodeId     Int
+  node       MemoryNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  payload    Json?
+  priority   Float?
+  createdAt  DateTime @default(now())
+}
+
+model MemoryEmbedding {
+  id        Int      @id @default(autoincrement())
+  nodeId    Int
+  node      MemoryNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  modality  String   @default("text")
+  vector    Json
+  createdAt DateTime @default(now())
+}
+
+model MemoryEvent {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  user      User?    @relation("UserMemoryEvents", fields: [userId], references: [id], onDelete: SetNull)
+  tenantId  Int?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  nodeId    Int?
+  node      MemoryNode? @relation("MemoryNodeEvents", fields: [nodeId], references: [id], onDelete: SetNull)
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tenantId])
+  @@index([type])
+}
+
+model MemoryClusterLink {
+  id        Int      @id @default(autoincrement())
+  clusterId Int
+  nodeId    Int
+  cluster   MemoryCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  node      MemoryNode    @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@unique([clusterId, nodeId])
+  @@index([nodeId])
+}
+
+model UserPreferenceVector {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId   Int?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  vector     Json
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, tenantId])
+}
+
+model UserRealtimeState {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  tenantId   Int?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  state      Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, tenantId])
+}
+
+model UserAdaptiveProfile {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  tenantId   Int?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  preferences Json?
+  segments   Json?
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, tenantId])
+}
+
+model UserSessionFingerprint {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  tenantId   Int?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  hash       String   @unique
+  meta       Json?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model IdentityNode {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  user       User?    @relation("UserIdentityNodes", fields: [userId], references: [id], onDelete: SetNull)
+  tenantId   Int?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tag        String   @default("reader")
+  embedding  Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  edgesFrom  IdentityEdge[] @relation("IdentityEdgeFrom")
+  edgesTo    IdentityEdge[] @relation("IdentityEdgeTo")
+  personas   PersonaProfile[]
+  trustScores IdentityTrustScore[]
+  reputationSignals IdentityReputationSignal[]
+}
+
+model IdentityEdge {
+  id        Int      @id @default(autoincrement())
+  fromId    Int
+  toId      Int
+  from      IdentityNode @relation("IdentityEdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to        IdentityNode @relation("IdentityEdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+  relation  String   @default("linked")
+  weight    Float    @default(0.1)
+  context   Json?
+  createdAt DateTime @default(now())
+
+  @@index([fromId])
+  @@index([toId])
+}
+
+model PersonaProfile {
+  id        Int      @id @default(autoincrement())
+  identityId Int
+  identity  IdentityNode @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  label     String
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  links     PersonaLink[]
+}
+
+model PersonaLink {
+  id        Int      @id @default(autoincrement())
+  personaId Int
+  persona   PersonaProfile @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  tenantId  Int?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  tag       String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model IdentityTrustScore {
+  id        Int      @id @default(autoincrement())
+  identityId Int
+  identity  IdentityNode @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  score     Float   @default(0)
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+model IdentityReputationSignal {
+  id        Int      @id @default(autoincrement())
+  identityId Int
+  identity  IdentityNode @relation(fields: [identityId], references: [id], onDelete: Cascade)
+  signal    String
+  weight    Float  @default(0.1)
+  createdAt DateTime @default(now())
+}
+
+model IdentityCluster {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int?
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  label     String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+model AbuseReport {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  reporterId  Int?
+  reporter    User?    @relation("UserAbuseReports", fields: [reporterId], references: [id], onDelete: SetNull)
+  targetType  String
+  targetId    Int
+  commentId   Int?
+  comment     Comment? @relation("CommentAbuseReports", fields: [commentId], references: [id], onDelete: Cascade)
+  reason      String?
+  status      String   @default("open")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([targetType, targetId])
+}
+
+model EmailQueue {
+  id        Int      @id @default(autoincrement())
+  to        String
+  subject   String
+  body      String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+  sentAt    DateTime?
+}
+
+model WorkflowDefinition {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  name        String
+  description String?
+  triggers    Json
+  steps       Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  instances   WorkflowInstance[]
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+   tenantId    Int?
+   tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
+
+model WorkflowInstance {
+  id           Int      @id @default(autoincrement())
+  workflowId   Int
+  workflow     WorkflowDefinition @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  context      Json
+  status       String   @default("running")
+  currentStep  Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  finishedAt   DateTime?
+  steps        WorkflowStepExecution[]
+  tenantId     Int?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
+
+model WorkflowStepExecution {
+  id          Int      @id @default(autoincrement())
+  instanceId  Int
+  instance    WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  stepKey     String
+  stepType    String
+  input       Json?
+  output      Json?
+  status      String   @default("pending")
+  errorMessage String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  @@index([instanceId])
+}
+
+model FeatureFlag {
+  id             Int      @id @default(autoincrement())
+  key            String   @unique
+  description    String?
+  type           String   @default("boolean")
+  variants       Json?
+  defaultVariant String
+  targetingRules Json?
+  isActive       Boolean  @default(true)
+  rolloutStrategy String  @default("all")
+  configuration Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  workspaceId    Int?
+  workspace      Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+}
+
+model Experiment {
+  id             Int      @id @default(autoincrement())
+  key            String   @unique
+  name           String
+  description    String?
+  status         String   @default("running")
+  variants       Json?
+  targetAudience Json?
+  metrics        Json?
+  trafficAllocation Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  assignments    ExperimentAssignment[]
+  exposures      ExperimentExposure[]
+  conversions    ExperimentConversion[]
+}
+
+model ExperimentAssignment {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  experimentId  Int
+  experiment    Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  variantKey    String
+  assignedAt    DateTime @default(now())
+
+  @@unique([userId, experimentId], name: "userId_experimentId")
+  @@index([experimentId])
+}
+
+model ExperimentExposure {
+  id           Int      @id @default(autoincrement())
+  experimentId Int
+  userId       Int?
+  variantKey   String
+  createdAt    DateTime @default(now())
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId])
+}
+
+model ExperimentConversion {
+  id           Int      @id @default(autoincrement())
+  experimentId Int
+  userId       Int?
+  variantKey   String
+  metric       String
+  value        Float
+  createdAt    DateTime @default(now())
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@index([experimentId])
+}
+model Agent {
+  id           Int      @id @default(autoincrement())
+  key          String   @unique
+  name         String
+  description  String?
+  capabilities Json?
+  schedule     String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  runs         AgentRun[]
+}
+
+model AgentRun {
+  id            Int      @id @default(autoincrement())
+  agentId       Int
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  runType       String   @default("manual")
+  inputContext  Json?
+  outputSummary Json?
+  status        String   @default("running")
+  errorMessage  String?
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([agentId])
+}
+
+model ArticleQualityReport {
+  id          Int      @id @default(autoincrement())
+  articleId   Int
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  score       Int?
+  notes       String?
+  createdAt   DateTime @default(now())
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+}
+
+model ContentIdea {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String?
+  tags          Json?
+  suggestedById Int?
+  suggestedBy   User?    @relation(fields: [suggestedById], references: [id], onDelete: SetNull)
+  status        String   @default("draft")
+  createdAt     DateTime @default(now())
+}
+
+model Locale {
+  code       String           @id
+  name       String
+  direction  LocaleDirection  @default(LTR)
+  isDefault  Boolean          @default(false)
+  isEnabled  Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  translations ArticleTranslation[]
+}
+
+model Workspace {
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?
+  logo        String?
+  primaryLocale String? @default("fa")
+  plan        String    @default("free")
+  entitlements Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  tenantId    Int?
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  members     WorkspaceMember[]
+  articles    Article[]
+  categories  Category[]
+  tags        Tag[]
+  adSlots     AdSlot[]
+  adCampaigns AdCampaign[]
+  sponsorships Sponsorship[]
+  products    Product[]
+  orders      Order[]
+  subscriptions Subscription[]
+  workflows   WorkflowDefinition[]
+  featureFlags FeatureFlag[]
+  templates   PageTemplate[]
+  themes      Theme[]
+  aiTemplates AiTemplate[]
+  aiDrafts    AiDraft[]
+  mediaAssets MediaAsset[]
+  plugins     Plugin[]
+  sponsors    Sponsor[]
+  campaigns   Campaign[]
+  placements  Placement[]
+  membershipPlans MembershipPlan[]
+  memberships Membership[]
+  topics      Topic[]
+  userProfiles UserProfile[]
+  userEvents  UserEvent[]
+  userInterestVectors UserInterestVector[]
+  reactions   Reaction[]
+  aiAgents    AiAgent[]
+  aiToolBindings AiToolBinding[]
+  aiTasks     AiTask[]
+  aiMessages  AiMessage[]
+  aiMemories  AiMemory[]
+  aiWorkspaceProfile AiWorkspaceProfile?
+  aiPluginBindings AiPluginBinding[]
+  aiEventLogs AiEventLog[]
+  aiModelConfigs AiModelConfig[]
+  aiPromptTemplates AiPromptTemplate[]
+  aiUserProfiles AiUserProfile[]
+  bookmarks   Bookmark[]
+  follows     Follow[]
+  webhooks    WebhookEndpoint[]
+  apiKeys     ApiKey[]
+  memoryNodes MemoryNode[]
+  pluginSecrets PluginSecret[]
+}
+
+model WorkspaceMember {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        WorkspaceRole @default(VIEWER)
+  status      String   @default("accepted")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model SearchDocument {
+  id           Int      @id @default(autoincrement())
+  articleId    Int
+  article      Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  localeCode   String
+  title        String
+  bodyExcerpt  String?
+  tags         Json?
+  categories   Json?
+  boostedScore Float?   @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([articleId])
+  @@index([localeCode])
+  @@unique([articleId, localeCode], name: "articleId_localeCode")
+}
+
+model ArticleStatsDaily {
+  id               Int      @id @default(autoincrement())
+  articleId        Int
+  article          Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  localeCode       String?
+  date             DateTime
+  views            Int      @default(0)
+  uniqueUsers      Int      @default(0)
+  avgReadDepth     Float?   @default(0)
+  clicksOut        Int      @default(0)
+  conversions      Int      @default(0)
+  revenueEstimate  Float?   @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([articleId, date])
+  @@unique([articleId, date], name: "articleId_date")
+}
+
+model SearchQueryStatsDaily {
+  id               Int      @id @default(autoincrement())
+  queryText        String
+  date             DateTime
+  searchCount      Int      @default(0)
+  clickThroughRate Float?   @default(0)
+  zeroResultsRate  Float?   @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([date])
+  @@index([queryText])
+  @@unique([queryText, date], name: "queryText_date")
+}
+
+model UserEngagementDaily {
+  id               Int      @id @default(autoincrement())
+  userId           Int
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date             DateTime
+  sessions         Int      @default(0)
+  pagesViewed      Int      @default(0)
+  actionsPerformed Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([userId, date])
+}
+
+model Plugin {
+  id           Int      @id @default(autoincrement())
+  key          String   @unique
+  name         String
+  description  String?
+  slot         String
+  type         String
+  configSchema Json?
+  config       Json?
+  isEnabled    Boolean  @default(true)
+  visibility   String   @default("private")
+  tags         String[]
+  latestVersionId Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  workspaceId  Int?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  tenantId     Int?
+  tenant       Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  installations PluginInstallation[]
+  categoryId   Int?
+  category     PluginCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  versions     PluginVersion[]
+  settings     PluginSettings[]
+  executionLogs PluginExecutionLog[]
+  permissions  PluginPermission[]
+  aiPluginBindings AiPluginBinding[]
+  secrets      PluginSecret[]
+  dependencies PluginDependency[] @relation("PluginDependsOn")
+  dependents   PluginDependency[] @relation("PluginDependencyOf")
+  latestVersion PluginVersion? @relation("PluginLatestVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([categoryId])
+}
+
+model PriceTier {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  label     String
+  price     Int
+  currency  String   @default("IRR")
+  features  Json?
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Entitlement {
+  id              Int      @id @default(autoincrement())
+  tenantId        Int?
+  tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  userId          Int
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entitlementType String
+  subjectId       Int?
+  source          String
+  expiresAt       DateTime?
+  subscriptionId  Int?
+  subscription    Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  productId       Int?
+  product         Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([userId])
+  @@index([entitlementType, subjectId])
+}
+
+model PluginInstallation {
+  id            Int      @id @default(autoincrement())
+  tenantId      Int
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pluginId      Int
+  plugin        Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  configuration Json?
+  status        String   @default("active")
+  installedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, pluginId])
+  @@index([tenantId])
+}
+
+model PluginCategory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  plugins     Plugin[]
+}
+
+model PluginVersion {
+  id           Int      @id @default(autoincrement())
+  pluginId     Int
+  plugin       Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  version      String
+  manifest     Json?
+  status       String   @default("published")
+  changelog    String?
+  publishedAt  DateTime?
+  deprecatedAt DateTime?
+  rollbackToId Int?
+  rollbackTo   PluginVersion? @relation("PluginRollback", fields: [rollbackToId], references: [id], onDelete: SetNull)
+  rollbackChildren PluginVersion[] @relation("PluginRollback")
+  createdAt    DateTime @default(now())
+  aiPluginBindings AiPluginBinding[]
+  latestForPlugin Plugin[] @relation("PluginLatestVersion")
+
+  @@unique([pluginId, version])
+}
+
+model PluginSettings {
+  id           Int      @id @default(autoincrement())
+  pluginId     Int
+  plugin       Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  tenantId     Int?
+  tenant       Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  settings     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  secrets      PluginSecret[]
+
+  @@index([tenantId])
+  @@unique([pluginId, tenantId])
+}
+
+model PluginExecutionLog {
+  id         Int      @id @default(autoincrement())
+  pluginId   Int
+  plugin     Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  tenantId   Int?
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  status     String
+  traceId    String?
+  spanId     String?
+  durationMs Int?
+  retries    Int      @default(0)
+  message    String?
+  payload    Json?
+  result     Json?
+  errorStack String?
+  createdAt  DateTime @default(now())
+
+  @@index([pluginId])
+  @@index([tenantId])
+  @@index([status])
+}
+
+model PluginPermission {
+  id        Int      @id @default(autoincrement())
+  pluginId  Int
+  plugin    Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  scope     String
+  workspaceRole String?
+  permissionType String?
+  createdAt DateTime @default(now())
+
+  @@index([pluginId])
+}
+
+model PluginSecret {
+  id          Int      @id @default(autoincrement())
+  pluginId    Int
+  plugin      Plugin   @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+  tenantId    Int?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  settingsId  Int?
+  settings    PluginSettings? @relation(fields: [settingsId], references: [id], onDelete: SetNull)
+  key         String
+  value       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([pluginId, tenantId, workspaceId, key])
+  @@index([tenantId])
+  @@index([workspaceId])
+}
+
+model PluginDependency {
+  id             Int     @id @default(autoincrement())
+  pluginId       Int
+  plugin         Plugin  @relation("PluginDependsOn", fields: [pluginId], references: [id], onDelete: Cascade)
+  dependsOnId    Int
+  dependsOn      Plugin  @relation("PluginDependencyOf", fields: [dependsOnId], references: [id], onDelete: Cascade)
+  versionRange   String?
+  createdAt      DateTime @default(now())
+
+  @@unique([pluginId, dependsOnId])
+  @@index([dependsOnId])
+}
+
+model AiAgent {
+  id            Int            @id @default(autoincrement())
+  tenantId      Int?
+  tenant        Tenant?        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId   Int?
+  workspace     Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  name          String
+  description   String?
+  kind          String         @default("general") // e.g. content, scenario, assistant
+  enabled       Boolean        @default(true)
+  modelConfigId Int?
+  modelConfig   AiModelConfig? @relation(fields: [modelConfigId], references: [id], onDelete: SetNull)
+  systemPrompt  String?
+  version       String?        @default("1.0.0")
+  toolBindings  AiToolBinding[]
+  tasks         AiTask[]
+  runs          AiRun[]
+  messages      AiMessage[]
+  eventLogs     AiEventLog[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  @@index([tenantId])
+  @@index([workspaceId])
+}
+
+model AiTool {
+  id           Int              @id @default(autoincrement())
+  key          String           @unique
+  name         String
+  description  String?
+  inputSchema  Json?
+  outputSchema Json?
+  kind         String           @default("internal") // internal | plugin | external
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  bindings     AiToolBinding[]
+  runs         AiRun[]
+  events       AiEventLog[]
+  pluginBindings AiPluginBinding[]
+  tasks        AiTask[]
+}
+
+model AiToolBinding {
+  id          Int        @id @default(autoincrement())
+  tenantId    Int?
+  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  agentId     Int
+  agent       AiAgent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  toolId      Int
+  tool        AiTool     @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  config      Json?
+  enabled     Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([tenantId])
+  @@index([workspaceId])
+  @@unique([agentId, toolId])
+}
+
+model AiTask {
+  id            Int         @id @default(autoincrement())
+  tenantId      Int?
+  tenant        Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId   Int?
+  workspace     Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  agentId       Int?
+  agent         AiAgent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  toolId        Int?
+  tool          AiTool?     @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  type          String
+  status        String      @default("pending")
+  payload       Json?
+  result        Json?
+  priority      Int         @default(0)
+  createdByUserId Int?
+  createdByUser User?       @relation("AiTaskCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  scheduledAt   DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  errorMessage  String?
+  jobs          AiJob[]
+  runs          AiRun[]
+  messages      AiMessage[]
+  events        AiEventLog[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([workspaceId])
+  @@index([agentId])
+  @@index([status])
+}
+
+model AiJob {
+  id            Int       @id @default(autoincrement())
+  taskId        Int
+  task          AiTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  status        String    @default("queued")
+  queue         String    @default("default")
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+  scheduledFor  DateTime?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  errorMessage  String?
+  cost          Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([taskId])
+  @@index([status])
+}
+
+model AiRun {
+  id             Int        @id @default(autoincrement())
+  taskId         Int?
+  task           AiTask?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  agentId        Int?
+  agent          AiAgent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  toolId         Int?
+  tool           AiTool?    @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  status         String     @default("running")
+  model          String?
+  promptTokens   Int?
+  completionTokens Int?
+  totalTokens    Int?
+  durationMs     Int?
+  cost           Float?
+  output         Json?
+  errorMessage   String?
+  messages       AiMessage[]
+  events         AiEventLog[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([taskId])
+  @@index([agentId])
+  @@index([toolId])
+}
+
+model AiMessage {
+  id          Int        @id @default(autoincrement())
+  taskId      Int?
+  task        AiTask?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  runId       Int?
+  run         AiRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  agentId     Int?
+  agent       AiAgent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  role        String     @default("user") // system | user | assistant | tool
+  content     Json
+  name        String?
+  toolCallId  String?
+  createdAt   DateTime   @default(now())
+
+  @@index([workspaceId])
+  @@index([taskId])
+  @@index([runId])
+  @@index([agentId])
+}
+
+model AiMemory {
+  id           Int        @id @default(autoincrement())
+  tenantId     Int?
+  tenant       Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId  Int?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  userId       Int?
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  scope        String     @default("long") // short | mid | long
+  source       String     @default("ai")
+  content      Json
+  embedding    Json?
+  tags         String[]
+  importance   Float?     @default(0)
+  expiresAt    DateTime?
+  lastAccessedAt DateTime?
+  version      Int        @default(1)
+  deletedAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([tenantId])
+}
+
+model AiUserProfile {
+  id          Int        @id @default(autoincrement())
+  userId      Int        @unique
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  interests   String[]
+  languages   String[]
+  preferences Json?
+  vector      Json?
+  updatedAt   DateTime   @updatedAt
+  createdAt   DateTime   @default(now())
+}
+
+model AiWorkspaceProfile {
+  id            Int        @id @default(autoincrement())
+  workspaceId   Int        @unique
+  workspace     Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultTone   String?    @default("neutral")
+  domains       String[]
+  safetyRules   Json?
+  vector        Json?
+  updatedAt     DateTime   @updatedAt
+  createdAt     DateTime   @default(now())
+}
+
+model AiModelConfig {
+  id           Int        @id @default(autoincrement())
+  tenantId     Int?
+  tenant       Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId  Int?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  name         String
+  provider     String
+  model        String
+  temperature  Float      @default(0.2)
+  maxTokens    Int        @default(2048)
+  topP         Float?     @default(1)
+  stopSequences String[]
+  metadata     Json?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  agents       AiAgent[]
+  promptTemplates AiPromptTemplate[]
+}
+
+model AiPromptTemplate {
+  id             Int            @id @default(autoincrement())
+  tenantId       Int?
+  tenant         Tenant?        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId    Int?
+  workspace      Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  key            String
+  title          String
+  content        String
+  variables      String[]
+  type           String         @default("system")
+  version        Int            @default(1)
+  modelConfigId  Int?
+  modelConfig    AiModelConfig? @relation(fields: [modelConfigId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([workspaceId, key])
+}
+
+model AiPluginBinding {
+  id              Int        @id @default(autoincrement())
+  tenantId        Int?
+  tenant          Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId     Int?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  pluginId        Int?
+  plugin          Plugin?    @relation(fields: [pluginId], references: [id], onDelete: SetNull)
+  pluginVersionId Int?
+  pluginVersion   PluginVersion? @relation(fields: [pluginVersionId], references: [id], onDelete: SetNull)
+  aiToolId        Int
+  aiTool          AiTool     @relation(fields: [aiToolId], references: [id], onDelete: Cascade)
+  config          Json?
+  enabled         Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  @@unique([aiToolId, pluginVersionId, pluginId, workspaceId], map: "aiTool_plugin_pluginVersion_workspace_unique")
+
+  @@index([workspaceId])
+  @@index([tenantId])
+}
+
+model AiEventLog {
+  id          Int        @id @default(autoincrement())
+  tenantId    Int?
+  tenant      Tenant?    @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  taskId      Int?
+  task        AiTask?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  runId       Int?
+  run         AiRun?     @relation(fields: [runId], references: [id], onDelete: SetNull)
+  agentId     Int?
+  agent       AiAgent?   @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  toolId      Int?
+  tool        AiTool?    @relation(fields: [toolId], references: [id], onDelete: SetNull)
+  traceId     String?
+  spanId      String?
+  level       String     @default("info")
+  message     String
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+
+  @@index([workspaceId])
+  @@index([tenantId])
+  @@index([agentId])
+  @@index([toolId])
+}
+
+model UserConsent {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consentType String
+  status      String   @default("unknown")
+  source      String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, consentType])
+  @@index([consentType])
+}
+
+model Sponsor {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  logo        String?
+  url         String?
+  contact     String?
+  notes       String?
+  tags        Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  campaigns   Campaign[]
+
+  @@index([workspaceId])
+}
+
+model Campaign {
+  id           Int      @id @default(autoincrement())
+  workspaceId  Int
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sponsorId    Int
+  sponsor      Sponsor  @relation(fields: [sponsorId], references: [id], onDelete: Cascade)
+  name         String
+  startDate    DateTime?
+  endDate      DateTime?
+  budget       Float?
+  pricingModel String   @default("cpm")
+  targeting    Json?
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  placements   Placement[]
+
+  @@index([workspaceId])
+  @@index([sponsorId])
+}
+
+model Placement {
+  id            Int      @id @default(autoincrement())
+  workspaceId   Int
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaignId    Int
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  placementType String
+  position      String?
+  conditions    Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([campaignId])
+}
+
+model MembershipPlan {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name        String
+  slug        String
+  price       Int
+  billingCycle String   @default("monthly")
+  currency    String    @default("IRR")
+  benefits    Json?
+  status      String    @default("active")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  memberships Membership[]
+  tenantId    Int?
+  tenant      Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, slug])
+}
+
+model Membership {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      Int?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  planId      Int
+  plan        MembershipPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  status      String   @default("active")
+  startAt     DateTime @default(now())
+  endAt       DateTime?
+  externalCustomerId String?
+  externalSubscriptionId String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  tenantId    Int?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([planId])
+  @@index([tenantId])
+}
+
+model AiTemplate {
+  id           Int      @id @default(autoincrement())
+  workspaceId  Int
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name         String
+  description  String?
+  type         String
+  parameters   Json?
+  createdById  Int?
+  createdBy    User?    @relation("UserAiTemplates", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model AiDraft {
+  id           Int      @id @default(autoincrement())
+  workspaceId  Int
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  articleId    Int?
+  article      Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  content      String
+  meta         Json?
+  createdById  Int?
+  createdBy    User?    @relation("UserAiDrafts", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([articleId])
+}
+
+model MediaAsset {
+  id           Int      @id @default(autoincrement())
+  workspaceId  Int
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  type         String   @default("image")
+  source       String   @default("uploaded")
+  url          String
+  meta         Json?
+  tags         Json?
+  altText      String?
+  description  String?
+  createdById  Int?
+  createdBy    User?    @relation("UserMediaAssets", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model Theme {
+  id           Int      @id @default(autoincrement())
+  workspaceId  Int?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  name         String
+  slug         String
+  metadata     Json?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([workspaceId, slug])
+}
+
+model PageTemplate {
+  id           Int      @id @default(autoincrement())
+  workspaceId  Int?
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  type         String
+  slug         String
+  configuration Json?
+  createdById  Int?
+  createdBy    User?    @relation("UserPageTemplates", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([workspaceId, type, slug])
+}
+
+model Topic {
+  id            Int      @id @default(autoincrement())
+  workspaceId   Int?
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  name          String
+  slug          String
+  description   String?
+  type          String   @default("concept")
+  primaryLocale String?  @default("fa")
+  metadata      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  relationshipsFrom TopicRelationship[] @relation("TopicFrom")
+  relationshipsTo   TopicRelationship[] @relation("TopicTo")
+  articleTopics ArticleTopic[]
+  tags        Tag[]
+  categories  Category[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
+}
+
+model TopicRelationship {
+  id           Int    @id @default(autoincrement())
+  sourceId     Int
+  targetId     Int
+  source       Topic  @relation("TopicFrom", fields: [sourceId], references: [id], onDelete: Cascade)
+  target       Topic  @relation("TopicTo", fields: [targetId], references: [id], onDelete: Cascade)
+  relationType String
+
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+model ArticleTopic {
+  articleId Int
+  topicId   Int
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  topic     Topic   @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, topicId])
+  @@index([topicId])
+}
+
+model UserProfile {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  workspaceId Int?
+  locale      String?
+  preferredLanguages Json?
+  interests   Json?
+  readingPreferences Json?
+  notificationPreferences Json?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, workspaceId])
+}
+
+model UserEvent {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  workspaceId Int?
+  eventType   String
+  entityType  String?
+  entityId    Int?
+  context     Json?
+  timestamp   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, eventType])
+  @@index([userId])
+}
+
+model UserInterestVector {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  workspaceId Int?
+  vector      Json
+  lastUpdatedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, workspaceId])
+}
+
+model Reaction {
+  id           Int      @id @default(autoincrement())
+  workspaceId  Int?
+  userId       Int
+  entityType   String
+  entityId     Int
+  reactionType String
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, entityType, entityId, reactionType])
+  @@index([workspaceId])
+}
+
+model Bookmark {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int?
+  userId      Int
+  articleId   Int
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, articleId])
+  @@index([workspaceId])
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int?
+  followerId  Int
+  followedType String
+  followedId   Int
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [followerId], references: [id], onDelete: Cascade)
+  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+
+  @@unique([followerId, followedType, followedId])
+  @@index([workspaceId])
+}
+
+model WebhookEndpoint {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  url         String
+  secret      String?
+  events      Json?
+  status      String   @default("active")
+  lastSuccessAt DateTime?
+  lastFailureAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+}
+
+model ApiKey {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  keyHash     String   @unique
+  scopes      Json?
+  rateLimit   Int      @default(1000)
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+}
+
+model Tenant {
+  id              Int      @id @default(autoincrement())
+  slug            String   @unique
+  legalName       String
+  displayName     String
+  primaryDomain   String
+  extraDomains    Json?
+  defaultLocale   String   @default("fa")
+  supportedLocales Json?
+  plan            String   @default("free")
+  limits          Json?
+  configuration   Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now())
+  deletedAt       DateTime?
+  workspaces      Workspace[]
+  plugins         Plugin[]
+  products        Product[]
+  orders          Order[]
+  subscriptions   Subscription[]
+  membershipPlans MembershipPlan[]
+  memberships     Membership[]
+  entitlements    Entitlement[]
+  pluginInstallations PluginInstallation[]
+  workflowDefinitions WorkflowDefinition[]
+  workflowInstances   WorkflowInstance[]
+  comments      Comment[]
+  abuseReports  AbuseReport[]
+  memoryNodes   MemoryNode[]
+  memoryClusters MemoryCluster[]
+  memoryEvents  MemoryEvent[]
+  userPreferenceVectors UserPreferenceVector[]
+  userRealtimeStates UserRealtimeState[]
+  userAdaptiveProfiles UserAdaptiveProfile[]
+  userSessionFingerprints UserSessionFingerprint[]
+  identityNodes IdentityNode[]
+  identityClusters IdentityCluster[]
+  personaLinks PersonaLink[]
+  pluginSettings PluginSettings[]
+  pluginExecutionLogs PluginExecutionLog[]
+  aiAgents   AiAgent[]
+  aiToolBindings AiToolBinding[]
+  aiTasks    AiTask[]
+  aiMemories AiMemory[]
+  aiModelConfigs AiModelConfig[]
+  aiPromptTemplates AiPromptTemplate[]
+  aiPluginBindings AiPluginBinding[]
+  aiEventLogs AiEventLog[]
+  pluginSecrets PluginSecret[]
+
+  @@index([slug])
+}
+
+model DataAccessLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int?
+  actorUserId Int?
+  action      String
+  targetType  String?
+  targetId    Int?
+  timestamp   DateTime @default(now())
+  metadata    Json?
+}
+
+
+

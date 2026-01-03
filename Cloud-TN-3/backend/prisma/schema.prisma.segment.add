@@ -1,0 +1,52 @@
+model Agent {
+  id           Int      @id @default(autoincrement())
+  key          String   @unique
+  name         String
+  description  String?
+  capabilities Json?
+  schedule     String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  runs         AgentRun[]
+}
+
+model AgentRun {
+  id            Int      @id @default(autoincrement())
+  agentId       Int
+  agent         Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  runType       String   @default("manual")
+  inputContext  Json?
+  outputSummary Json?
+  status        String   @default("running")
+  errorMessage  String?
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  createdAt     DateTime @default(now())
+
+  @@index([agentId])
+}
+
+model ArticleQualityReport {
+  id          Int      @id @default(autoincrement())
+  articleId   Int
+  article     Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  score       Int?
+  notes       String?
+  createdAt   DateTime @default(now())
+  createdById Int?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([articleId])
+}
+
+model ContentIdea {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String?
+  tags          Json?
+  suggestedById Int?
+  suggestedBy   User?    @relation(fields: [suggestedById], references: [id], onDelete: SetNull)
+  status        String   @default("draft")
+  createdAt     DateTime @default(now())
+}

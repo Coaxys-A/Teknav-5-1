@@ -1,0 +1,15 @@
+{
+  "sentryDsn": "",
+  "apmServiceName": "teknav-backend",
+  "apmServerUrl": "",
+  "samplingRate": 0.2,
+  "alerts": {
+    "errorRateThreshold": 0.05,
+    "latencyMsP95": 1500
+  },
+  "backups": {
+    "postgresCron": "0 3 * * *",
+    "redisCron": "0 4 * * *",
+    "destination": "s3://teknav-backups/"
+  }
+}

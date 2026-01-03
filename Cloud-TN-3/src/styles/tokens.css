@@ -1,0 +1,8 @@
+:root {
+  --color-brand: #0f4c81;   /* deep tech blue */
+  --color-brand-light: #1b6aae;
+  --color-brand-dark: #0b3961;
+  --color-accent: #27c1b8;  /* teal accent */
+  --radius-card: 1rem;      /* 16px */
+  --shadow-soft: 0 6px 24px rgba(0,0,0,0.08);
+}

@@ -1,0 +1,103 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type AIReport {
+  aiProbability: Float
+  createdAt: DateTime!
+  feedback: String
+  id: ID!
+  modelUsed: String
+  originalityScore: Float
+  seoScore: Float
+  structureValid: Boolean
+}
+
+type Article {
+  aiReports: [AIReport!]
+  author: User
+  categorySlug: String
+  content: String!
+  createdAt: DateTime!
+  excerpt: String
+  id: ID!
+  slug: String!
+  status: String!
+  tags: [String!]
+  title: String!
+  updatedAt: DateTime!
+}
+
+input CreateArticleInput {
+  categorySlug: String
+  content: String!
+  excerpt: String
+  tags: [String!]
+  title: String!
+}
+
+input CreateUserInput {
+  email: String!
+  name: String
+  password: String!
+  role: Role
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Mutation {
+  approveArticle(id: Int!): Article!
+  createArticle(input: CreateArticleInput!): Article!
+  createUser(input: CreateUserInput!): User!
+  rejectArticle(id: Int!, reason: String): Article!
+  updateArticle(id: Int!, input: UpdateArticleInput!): Article!
+  updateUser(id: Int!, input: UpdateUserInput!): User!
+}
+
+type Query {
+  me: User!
+  myArticles(status: String): [Article!]!
+  publicArticles(status: String): [Article!]!
+  users: [User!]!
+}
+
+enum Role {
+  ADMIN
+  AUTHOR
+  CREATOR
+  EDITOR
+  GUEST
+  MANAGER
+  OWNER
+  PUBLISHER
+  USER
+  WRITER
+}
+
+input UpdateArticleInput {
+  categorySlug: String
+  content: String
+  excerpt: String
+  status: String
+  tags: [String!]
+  title: String
+}
+
+input UpdateUserInput {
+  email: String
+  name: String
+  password: String
+  role: Role
+}
+
+type User {
+  createdAt: DateTime!
+  email: String!
+  id: ID!
+  name: String
+  role: Role!
+  updatedAt: DateTime!
+}

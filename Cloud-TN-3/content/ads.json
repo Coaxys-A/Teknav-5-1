@@ -1,0 +1,26 @@
+{
+  "updatedAt": "2025-10-17T08:00:00+03:30",
+  "items": [
+    {
+      "position": "banner_top",
+      "creativeUrl": "https://cdn.teknav.ir/ads/banner-top.jpg",
+      "linkUrl": "https://teknav.ir/promo",
+      "weight": 3,
+      "active": true
+    },
+    {
+      "position": "banner_sidebar",
+      "creativeUrl": "https://cdn.teknav.ir/ads/sidebar.jpg",
+      "linkUrl": "https://teknav.ir/academy",
+      "weight": 2,
+      "active": true
+    },
+    {
+      "position": "modal_promo",
+      "creativeUrl": "https://cdn.teknav.ir/ads/modal.jpg",
+      "linkUrl": "https://teknav.ir/subscribe",
+      "weight": 1,
+      "active": false
+    }
+  ]
+}
